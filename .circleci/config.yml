@@ -1,5 +1,28 @@
 version: 2.1
 
+orbs:
+  aws-cli: circleci/aws-cli@1.3.1
+
+commands:
+  destroy-environment:
+    description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
+    parameters:
+      # Add parameter here
+      back_end:
+        default: "bckend${CIRCLE_WORKFLOW_ID:0:7}"
+        type: string
+    steps:
+      - run:
+          name: Destroy environments
+          when: on_fail
+          command: |
+            echo "DESTROY STACKS"
+            #aws s3 rm "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
+
+            aws cloudformation delete-stack --stack-name bckend${CIRCLE_WORKFLOW_ID:0:7}
+            aws cloudformation delete-stack --stack-name frntend${CIRCLE_WORKFLOW_ID:0:7}
+            #exit 1
+
 jobs:
   build-frontend:
     docker:
@@ -110,26 +133,64 @@ jobs:
               --tags project="udapeoplebackend${CIRCLE_WORKFLOW_ID:0:7}" \
               --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
               --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}"    
-  
-#      - run:
-#          name: Ensure front-end infrastructure exist
-#          command: |
-#            aws cloudformation deploy \
-#              --template-file .circleci/files/frontend.yml \
-              #--tags project=your-tag \
-              # --stack-name "your front-end stack name with workflow id" \
-              # --parameter-overrides ID="your workflow id"  
-#              exit 1
-#      - run:
-#          name: Add back-end ip to ansible inventory
-#          command: |
-            # Your code here
-#            exit 1
-#      - persist_to_workspace:
-#          root: ~/
-#          paths:
-#            - project/.circleci/ansible/inventory.txt
+
+      - run:
+          name: Ensure front-end infrastructure exist
+          command: |
+            aws cloudformation deploy \
+              --template-file .circleci/files/frontend.yml \
+              --tags project="udapeoplefrontend${CIRCLE_WORKFLOW_ID:0:7}" \
+               --stack-name "udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}" \
+               --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}"  
+
+      - run:
+          name: Add back-end ip to ansible inventory
+          command: |
+            aws ec2 describe-instances \
+              --query 'Reservations[*].Instances[*].PublicIpAddress' \
+              --filters Name=tag:Name,Values=backend-$WORKFLOW_ID \
+              --output text >> inventory
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - project/.circleci/ansible/inventory.txt
       # Here's where you will add some code to rollback on failure      
+  configure-infrastructure:
+    docker:
+      - image: python:3.7-alpine3.11
+    steps:
+      - checkout
+      - add_ssh_keys:
+          fingerprints: ["2a:4b:b3:48:d0:d5:31:bf:50:77:d9:64:06:2a:40:57"]
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --update tar gzip ansible nodejs npm
+            pip install awscli
+            echo PWD
+            pwd
+            touch backend/.env
+            echo ENVIRONMENT=production >> "backend/.env"
+            echo TYPEORM_CONNECTION=postgres >> "backend/.env"
+            echo TYPEORM_MIGRATIONS_DIR=./src/migrations >> "backend/.env"
+            echo TYPEORM_ENTITIES=./src/modules/domain/**/*.entity.ts >> "backend/.env"
+            echo TYPEORM_MIGRATIONS=./src/migrations/*.ts >> "backend/.env"
+            echo TYPEORM_HOST=$TYPEORM_HOST >> "backend/.env"
+            echo TYPEORM_PORT=$TYPEORM_PORT >> "backend/.env"
+            echo TYPEORM_USERNAME=$TYPEORM_USERNAME >> "backend/.env"
+            echo TYPEORM_PASSWORD=$TYPEORM_PASSWORD >> "backend/.env"
+            echo TYPEORM_DATABASE=$TYPEORM_DATABASE >> "backend/.env"
+            
+            ls -la backend
+            cat backend/.env
+
+            cd ~/project/.circleci/ansible/
+            ansible-playbook -i inventory.txt configure-server.yml
+      # Here's where you will add some code to rollback on failure
+      - destroy-environment
+            
 
 workflows:
   default:
@@ -149,3 +210,5 @@ workflows:
 #          filters:
 #            branches:
 #              only: [test-feature-branch]
+      - configure-infrastructure:
+          requires: [deploy-infrastructure]
