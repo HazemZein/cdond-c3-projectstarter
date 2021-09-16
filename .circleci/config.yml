@@ -94,14 +94,14 @@ jobs:
     steps:
       - run: echo hello
 
-#  deploy-infrastructure:
-#    docker:
-#      - image: amazon/aws-cli
-#    steps:
-#      - checkout
-#      - run:
-#          name: Install dependencies
-#          command: yum install -y tar gzip
+  deploy-infrastructure:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: yum install -y tar gzip
 #      - run:
 #          name: Ensure back-end infrastructure exists
 #          command: |
