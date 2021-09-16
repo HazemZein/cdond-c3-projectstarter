@@ -105,24 +105,24 @@ jobs:
               --tags project="udapeoplebackend${CIRCLE_WORKFLOW_ID:0:7}" \
               --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
               --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}"    
-      - run:
-          name: Ensure front-end infrastructure exist
-          command: |
-            aws cloudformation deploy \
-              --template-file .circleci/files/frontend.yml \
+#      - run:
+#          name: Ensure front-end infrastructure exist
+#          command: |
+#            aws cloudformation deploy \
+#              --template-file .circleci/files/frontend.yml \
               #--tags project=your-tag \
               # --stack-name "your front-end stack name with workflow id" \
               # --parameter-overrides ID="your workflow id"  
-              exit 1
-      - run:
-          name: Add back-end ip to ansible inventory
-          command: |
+#              exit 1
+#      - run:
+#          name: Add back-end ip to ansible inventory
+#          command: |
             # Your code here
-            exit 1
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - project/.circleci/ansible/inventory.txt
+#            exit 1
+#      - persist_to_workspace:
+#          root: ~/
+#          paths:
+#            - project/.circleci/ansible/inventory.txt
       # Here's where you will add some code to rollback on failure      
 
 workflows:
@@ -136,8 +136,8 @@ workflows:
           requires: [build-backend]
       - scan-frontend:
           requires: [build-frontend]
-#      - scan-backend:
-#          requires: [build-backend]
+      - scan-backend:
+          requires: [build-backend]
       - deploy-infrastructure:
           requires: [test-frontend, test-backend, scan-frontend]
           filters:
