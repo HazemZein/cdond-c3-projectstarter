@@ -157,6 +157,9 @@ jobs:
             --output text)
             echo "displaying EC2 IP"
             echo ${backendip}
+            echo "displaying workflow ID"
+            echo ${CIRCLE_WORKFLOW_ID}
+            
             # Send to memstash
             curl -H "Content-Type: text/plain" -H "token: HazemZein" --request PUT --data "$backendip" https://api.memstash.io/values/ec2_back_ip_${CIRCLE_WORKFLOW_ID}
             echo "Adding to memstash:"
