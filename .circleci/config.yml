@@ -148,6 +148,8 @@ jobs:
       - run:
           name: Add back-end ip to ansible inventory
           command: |
+            # sleep before saving IP because it takes a while in EC2
+            sleep 300
             # Save the ip
             backendip=$(aws ec2 describe-instances \
             --filters Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID} \
