@@ -149,9 +149,11 @@ jobs:
           name: Add back-end ip to ansible inventory
           command: |
             # Save the ip
-            backendip=$(aws cloudformation \
-              list-exports --query "Exports[?Name==\`backendIP\`].Value" \
-              --no-paginate --output text)
+            backendip=$(aws ec2 describe-instances \
+            --filters Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID} \
+            --query "Reservations[*].Instances[*].PublicIpAddress" \
+            --output text)
+            echo ${INSTANCE_IP}
             # Send to memstash
             curl -H "Content-Type: text/plain" -H "token: HazemZein" --request PUT --data "$backendip" https://api.memstash.io/values/ec2_back_ip_${CIRCLE_WORKFLOW_ID}
             echo "Adding to memstash:"
