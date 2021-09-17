@@ -9,7 +9,7 @@ commands:
     parameters:
       # Add parameter here
       back_end:
-        default: "bckend${CIRCLE_WORKFLOW_ID:0:7}"
+        default: "backend${CIRCLE_WORKFLOW_ID:0:7}"
         type: string
     steps:
       - run:
@@ -155,6 +155,7 @@ jobs:
             --filters Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID} \
             --query "Reservations[*].Instances[*].PublicIpAddress" \
             --output text)
+            echo "displaying EC2 IP"
             echo ${backendip}
             # Send to memstash
             curl -H "Content-Type: text/plain" -H "token: HazemZein" --request PUT --data "$backendip" https://api.memstash.io/values/ec2_back_ip_${CIRCLE_WORKFLOW_ID}
