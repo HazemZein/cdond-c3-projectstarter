@@ -225,7 +225,7 @@ jobs:
       - checkout
       - run:
           name: Run migrations
-          # no_output_timeout: 10m
+          no_output_timeout: 10m
           command: |
             cd backend
             npm install
@@ -238,6 +238,47 @@ jobs:
             curl -H "Content-Type: text/plain" -H "token: HazemZein" --request PUT --data "1" \
              https://api.memstash.io/values/migration_${CIRCLE_WORKFLOW_ID:0:7}
      # Here's where you will add some code to rollback on failure     
+
+  deploy-frontend:
+    docker:
+      - image: circleci/node:13.8.0
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get -y -qq update
+            sudo apt-get -y -qq install python3
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+      - attach_workspace:
+          at: ~/ 
+      - run:
+          name: Get backend url
+          command: |
+            export BACKEND_IP=$(curl -H "token: gajdulj" --request GET \
+            https://api.memstash.io/values/ec2_back_ip_${CIRCLE_WORKFLOW_ID})
+            export API_URL="http://${BACKEND_IP}:3030"
+            echo "${API_URL}"
+
+            cd frontend
+            echo "${API_URL}" > apiurl.txt
+      - run:
+          name: Deploy frontend objects
+          command: |
+            cd frontend
+            export API_URL=$(cat apiurl.txt)
+            npm install
+            npm run build
+            aws s3 sync dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}
+      - run:
+          name: Echo S3 location (front-end)
+          command: |
+            echo "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}"
+      # Here's where you will add some code to rollback on failure      
+      #- destroy-environment
+      #- revert-migrations    
 workflows:
   default:
     jobs:
@@ -260,3 +301,5 @@ workflows:
            requires: [deploy-infrastructure]
        - run-migrations:
            requires: [configure-infrastructure]
+#       - deploy-frontend:
+#           requires: [run-migrations]
