@@ -7,21 +7,40 @@ commands:
   destroy-environment:
     description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
     parameters:
-      # Add parameter here
-      back_end:
-        default: "backend${CIRCLE_WORKFLOW_ID:0:7}"
-        type: string
+      workflow_id:
+              type: string
+              default: "${CIRCLE_WORKFLOW_ID:0:7}"
+     
     steps:
       - run:
           name: Destroy environments
           when: on_fail
           command: |
             echo "DESTROY STACKS"
-            #aws s3 rm "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
-
-            aws cloudformation delete-stack --stack-name bckend${CIRCLE_WORKFLOW_ID:0:7}
-            aws cloudformation delete-stack --stack-name frntend${CIRCLE_WORKFLOW_ID:0:7}
-            #exit 1
+            aws s3 rb s3://udapeople-<< parameters.workflow_id >> --force  
+            aws cloudformation delete-stack \
+                       --stack-name "udapeople-backend-<< parameters.workflow_id >>"
+            aws cloudformation delete-stack \
+                        --stack-name "udapeople-frontend-<< parameters.workflow_id >>"
+  revert-migrations:
+    description: Revert the last migration if successfully run in the current workflow.
+    steps:
+      - run:
+          name: Revert migrations
+          when: on_fail
+          command: |
+            # Curl command here to see if there was a successful migration associated with the workflow id, store result in SUCCESS variable
+            export SUCCESS=$(curl -H "token: gajdulj" --request GET https://api.memstash.io/values/migration_${CIRCLE_WORKFLOW_ID:0:7})
+            echo $CIRCLE_WORKFLOW_ID
+            echo $SUCCESS
+            if(( $SUCCESS==1 )); 
+            then
+            echo "reverting migrations..."
+            cd ~/project/backend
+            ls
+            npm install
+            npm run migrations:revert
+            fi
 
 jobs:
   build-frontend:
@@ -168,7 +187,7 @@ jobs:
           paths:
             - ansible/inventory.txt
       # Here's where you will add some code to rollback on failure  
-      #- destroy-environment  
+      - destroy-environment  
   configure-infrastructure:
     docker:
       - image: python:3.7-alpine3.11
@@ -216,7 +235,7 @@ jobs:
       
             
       # Here's where you will add some code to rollback on failure
-      #- destroy-environment
+      - destroy-environment
             
   run-migrations:
     docker:
@@ -238,7 +257,7 @@ jobs:
             curl -H "Content-Type: text/plain" -H "token: HazemZein" --request PUT --data "1" \
              https://api.memstash.io/values/migration_${CIRCLE_WORKFLOW_ID:0:7}
      # Here's where you will add some code to rollback on failure     
-
+      
   deploy-frontend:
     docker:
       - image: circleci/node:13.8.0
@@ -277,8 +296,84 @@ jobs:
           command: |
             echo "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}"
       # Here's where you will add some code to rollback on failure      
-      #- destroy-environment
-      #- revert-migrations    
+      - destroy-environment
+      - revert-migrations 
+
+  deploy-backend:
+    docker:
+      - image: python:3.7-alpine3.11
+    steps:
+      - checkout
+      - add_ssh_keys:
+          fingerprints:
+            - "2a:4b:b3:48:d0:d5:31:bf:50:77:d9:64:06:2a:40:57"
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --update ansible tar gzip ansible nodejs npm curl
+            pip install awscli
+      - run:
+          name: Deploy backend
+          command: |
+            export BACKEND_IP=$(curl -H "token: gajdulj" --request GET \
+            https://api.memstash.io/values/ec2_back_ip_${CIRCLE_WORKFLOW_ID})
+            echo "$BACKEND_IP"
+            echo "$BACKEND_IP" >> .circleci/ansible/inventory.txt
+            cat .circleci/ansible/inventory.txt
+            [[ ! -d backend ]] && mkdir backend
+            envfile="backend/.env"
+            echo ENVIROMENT=production > $envfile
+            echo TYPEORM_CONNECTION=postgres >> $envfile
+            echo TYPEORM_MIGRATIONS_DIR=./src/migrations >> $envfile
+            echo TYPEORM_ENTITIES=./src/modules/domain/**/*.entity.ts >> $envfile
+            echo TYPEORM_MIGRATIONS=./src/migrations/*.ts >> $envfile
+            echo TYPEORM_HOST=$TYPEORM_HOST >> $envfile
+            echo TYPEORM_PORT=$TYPEORM_PORT >> $envfile
+            echo TYPEORM_USERNAME=$TYPEORM_USERNAME >> $envfile
+            echo TYPEORM_PASSWORD=$TYPEORM_PASSWORD >> $envfile
+            echo TYPEORM_DATABASE=$TYPEORM_DATABASE >> $envfile
+            tar -cvf backend.tar backend
+            ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i .circleci/ansible/inventory.txt .circleci/ansible/deploy-backend.yml
+      # Here's where you will add some code to rollback on failure
+      - destroy-environment
+      - revert-migrations 
+
+  smoke-test:
+    docker:
+      - image: python:3.7-alpine3.11
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --update curl nodejs npm
+            pip install awscli
+      - run:
+          name: Backend smoke test.
+          command: |
+            export BACKEND_IP=$(curl -H "token: gajdulj" --request GET \
+            https://api.memstash.io/values/ec2_back_ip_${CIRCLE_WORKFLOW_ID})
+            echo $BACKEND_IP
+            echo "http://$BACKEND_IP:3030/api/status"
+            curl -vvv "http://$BACKEND_IP:3030/api/status"
+      - run:
+          name: Frontend smoke test.
+          command: |
+            URL="http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com"
+            echo $URL
+            if curl -s ${URL} | grep "Welcome"
+            then
+              return 1
+            else
+              return 1
+            fi
+      # Here's where you will add some code to rollback on failure 
+      - destroy-environment
+      - revert-migrations
 workflows:
   default:
     jobs:
@@ -301,5 +396,9 @@ workflows:
            requires: [deploy-infrastructure]
        - run-migrations:
            requires: [configure-infrastructure]
-#       - deploy-frontend:
-#           requires: [run-migrations]
+       - deploy-frontend:
+           requires: [run-migrations]
+       - deploy-backend:
+           requires: [run-migrations]
+       - smoke-test:
+           requires: [deploy-backend, deploy-frontend]
