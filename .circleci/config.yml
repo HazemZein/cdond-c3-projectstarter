@@ -34,7 +34,11 @@ commands:
             echo $CIRCLE_WORKFLOW_ID
             echo $SUCCESS
             if [[ "${SUCCESS}" == 1 ]]; then
-              npm run migrations:revert
+            echo "reverting migrations..."
+            cd ~/project/backend
+            ls
+            npm install
+            npm run migrations:revert
             fi
 
 jobs:
