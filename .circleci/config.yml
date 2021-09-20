@@ -425,15 +425,15 @@ jobs:
             echo "New id ${CIRCLE_WORKFLOW_ID:0:7}"
             echo ${STACKS}
       - run:
-            name: Save current workflow id to memstash
-            command: |
+          name: Save current workflow id to memstash
+          command: |
                 curl -H "Content-Type: text/plain" \
                 -H "token: HazemZein" \
                 --request PUT --data "${CIRCLE_WORKFLOW_ID:0:7}" \
                 https://api.memstash.io/values/persist_workflow_id
       - run:
-            name: Remove old stacks and files
-            command: |
+          name: Remove old stacks and files
+          command: |
             if [ "${OldWorkflowID}" != "" ]
                   then
                       aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive
