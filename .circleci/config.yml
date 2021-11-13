@@ -302,7 +302,7 @@ jobs:
           fingerprints:
             - "c4:9b:66:00:29:8a:0a:dd:31:c1:a2:0c:be:db:3b:61"
       - attach_workspace:
-          at: .
+          at: ~/
       - run:
           name: Install dependencies
           command: |
