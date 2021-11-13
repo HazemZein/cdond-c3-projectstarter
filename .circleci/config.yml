@@ -230,7 +230,7 @@ jobs:
       - run:
           name: Configure server
           command: |
-            ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ~/project/.circleci/ansible/inventory.txt ~/project/.circleci/ansible/configure-server.yml
+            ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ~/ansible/inventory.txt .circleci/ansible/configure-server.yml
       
             
       # Here's where you will add some code to rollback on failure
@@ -428,32 +428,32 @@ jobs:
 workflows:
   default:
     jobs:
-    #   - build-frontend
-    #   - build-backend
-    #   - test-frontend:
-    #       requires: [build-frontend]
-    #   - test-backend:
-    #       requires: [build-backend]
-    #   - scan-frontend:
-    #       requires: [build-frontend]
-    #   - scan-backend:
-    #       requires: [build-backend]
-       - deploy-infrastructure
+       - build-frontend
+       - build-backend
+       - test-frontend:
+           requires: [build-frontend]
+       - test-backend:
+           requires: [build-backend]
+       - scan-frontend:
+           requires: [build-frontend]
+       - scan-backend:
+           requires: [build-backend]
+    #   - deploy-infrastructure
 #           requires: [test-frontend, test-backend, scan-frontend, scan-frontend]
 #          filters:
 #            branches:
 #              only: [test-feature-branch]
-       - configure-infrastructure:
-           requires: [deploy-infrastructure]
-       - run-migrations:
-           requires: [configure-infrastructure]
-       - deploy-frontend:
-           requires: [run-migrations]
-       - deploy-backend:
-           requires: [run-migrations]
-       - smoke-test:
-           requires: [deploy-backend, deploy-frontend]
-       - cloudfront-update:
-           requires: [smoke-test]
-       - cleanup:
-           requires: [cloudfront-update]
+    #   - configure-infrastructure:
+    #       requires: [deploy-infrastructure]
+    #   - run-migrations:
+    #       requires: [configure-infrastructure]
+    #   - deploy-frontend:
+    #       requires: [run-migrations]
+    #   - deploy-backend:
+    #       requires: [run-migrations]
+    #   - smoke-test:
+    #       requires: [deploy-backend, deploy-frontend]
+    #   - cloudfront-update:
+    #       requires: [smoke-test]
+    #   - cleanup:
+    #       requires: [cloudfront-update]
