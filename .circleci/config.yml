@@ -165,16 +165,9 @@ jobs:
             backendip=$(aws cloudformation \
               list-exports --query "Exports[?Name==\`backendIP\`].Value" \
               --no-paginate --output text)
-            # Send to memstash
-            curl -H "Content-Type: text/plain" -H "token: HazemZein" --request PUT --data "$backendip" https://api.memstash.io/values/ec2_back_ip_${CIRCLE_WORKFLOW_ID}
-            echo "Adding to memstash:"
             echo "$backendip"
             echo "$backendip" >> .circleci/ansible/inventory.txt
-            # Save the url
-            export backendurl="http://${backendip}:3030"
-            echo "$backendurl"
-            curl -H "Content-Type: text/plain" -H "token: HazemZein" --request PUT --data "$backendurl" https://api.memstash.io/values/ec2_back_url_${CIRCLE_WORKFLOW_ID}
-
+            
       - run:
           name: Ensure inventory saved
           command: |
@@ -186,28 +179,21 @@ jobs:
           paths:
             - ansible/inventory.txt
       # Here's where you will add some code to rollback on failure  
-    #  - destroy-environment  
+      - destroy-environment  
   configure-infrastructure:
     docker:
       - image: python:3.7-alpine3.11
     steps:
       - checkout
       - add_ssh_keys:
-          fingerprints: ["2a:4b:b3:48:d0:d5:31:bf:50:77:d9:64:06:2a:40:57"]
+          fingerprints: ["c4:9b:66:00:29:8a:0a:dd:31:c1:a2:0c:be:db:3b:61"]
       - attach_workspace:
           at: ~/
       - run:
           name: Ensure inventory loaded
           command: |
-            ls
-            ls ~/
-            pwd
-            apk add curl
-            cat ~/project/.circleci/ansible/inventory.txt
-            export BACKEND_IP=$(curl -H "token: HazemZein" --request GET \
-            https://api.memstash.io/values/ec2_back_ip_${CIRCLE_WORKFLOW_ID})
-            echo "${BACKEND_IP}"  >> .circleci/ansible/inventory.txt
-            cat .circleci/ansible/inventory.txt
+            cat ~/ansible/inventory.txt
+
       - run:
           name: Install dependencies
           command: |
@@ -242,6 +228,14 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get -y -qq update
+            sudo apt-get -y -qq install python3
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/instal      
+      - run:
           name: Run migrations
           no_output_timeout: 10m
           command: |
@@ -256,7 +250,8 @@ jobs:
             curl -H "Content-Type: text/plain" -H "token: HazemZein" --request PUT --data "1" \
              https://api.memstash.io/values/migration_${CIRCLE_WORKFLOW_ID:0:7}
      # Here's where you will add some code to rollback on failure     
-      
+      - destroy-environment
+      - revert-migrations  
   deploy-frontend:
     docker:
       - image: circleci/node:13.8.0
@@ -428,25 +423,25 @@ jobs:
 workflows:
   default:
     jobs:
-       - build-frontend
-       - build-backend
-       - test-frontend:
-           requires: [build-frontend]
-       - test-backend:
-           requires: [build-backend]
-       - scan-frontend:
-           requires: [build-frontend]
-       - scan-backend:
-           requires: [build-backend]
-    #   - deploy-infrastructure
+#       - build-frontend
+#       - build-backend
+#       - test-frontend:
+#           requires: [build-frontend]
+#       - test-backend:
+#           requires: [build-backend]
+#       - scan-frontend:
+#           requires: [build-frontend]
+#       - scan-backend:
+#           requires: [build-backend]
+        - deploy-infrastructure
 #           requires: [test-frontend, test-backend, scan-frontend, scan-frontend]
 #          filters:
 #            branches:
 #              only: [test-feature-branch]
-    #   - configure-infrastructure:
-    #       requires: [deploy-infrastructure]
-    #   - run-migrations:
-    #       requires: [configure-infrastructure]
+        - configure-infrastructure:
+            requires: [deploy-infrastructure]
+        - run-migrations:
+            requires: [configure-infrastructure]
     #   - deploy-frontend:
     #       requires: [run-migrations]
     #   - deploy-backend:
