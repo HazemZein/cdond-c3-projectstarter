@@ -1,0 +1,14 @@
+URL01:
+https://github.com/HazemZein/cdond-c3-projectstarter
+
+URL02:
+http://udapeople-9c88744.s3-website-us-west-1.amazonaws.com/
+
+URL03:
+http://dcrtr3041ie80.cloudfront.net
+
+URL04:
+http://54.183.244.222:3030/api/status
+
+URL05:
+ec2-54-151-66-26.us-west-1.compute.amazonaws.com:9090/targets
